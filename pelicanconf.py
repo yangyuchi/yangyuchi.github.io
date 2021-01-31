@@ -4,6 +4,7 @@
 AUTHOR = 'Yuchi Yang'
 SITENAME = "Yuchi's Blog"
 SITEURL = ''
+SITE_DESCRIPTION = '''This is my personal blog.'''
 
 PATH = 'content'
 
@@ -31,4 +32,9 @@ SOCIAL = (('You can add links in your config file', '#'),
 DEFAULT_PAGINATION = 10
 
 # Uncomment following line if you want document-relative URLs when developing
-#RELATIVE_URLS = True
+# RELATIVE_URLS = True
+
+
+# Pelican default theme for dev
+THEME = "theme"
+DIRECT_TEMPLATES = ['index', 'tags', 'categories', 'authors', 'archives', 'blog']
