@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<!--[if lt IE 9 ]><html class="no-js oldie" lang="en"> <![endif]-->
+<!--[if IE 9 ]><html class="no-js oldie ie9" lang="en"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+
+    <!--- basic page needs
+    ================================================== -->
+    <meta charset="utf-8">
+    <title>Yuchi's Blog</title>
+    <meta name="description" content="This is my personal blog.">
+    <meta name="author" content="">
+
+    <!-- mobile specific metas
+    ================================================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS
+    ================================================== -->
+    <link rel="stylesheet" href="/theme/css/base.css" type="text/css" />
+    <link rel="stylesheet" href="/theme/css/vendor.css" type="text/css" />
+    <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+
+    <!-- script
+    ================================================== -->
+    <script src="/theme/js/modernizr.js"></script>
+    <script src="/theme/js/pace.min.js"></script>
+
+    <!-- favicons
+    ================================================== -->
+    <link rel="shortcut icon" href="/theme/images/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/theme/images/favicon.ico" type="image/x-icon">
+
+</head>
+
+<body id="top">
+
+    <!-- header
+    ================================================== -->
+    <header class="s-header">
+
+        <div class="header-logo">
+            <a class="site-logo" href="index.html"><img src="/theme/images/logo.png" alt="Homepage"></a>
+        </div>
+
+        <nav class="header-nav-wrap">
+            <ul class="header-nav">
+                <li class="current"><a class="smoothscroll"  href="#home" title="home">Home</a></li>
+                <li><a class="smoothscroll"  href="#about" title="about">About</a></li>
+                <li><a class="smoothscroll"  href="#blog" title="blog">Blog</a></li>
+                <li><a class="smoothscroll"  href="#projects" title="projects">Projects</a></li>
+                <li><a class="smoothscroll"  href="#gallery" title="gallery">Gallery</a></li>
+                <li><a class="smoothscroll"  href="#contact" title="contact">Contact</a></li>
+            </ul>
+        </nav>
+
+        <a class="header-menu-toggle" href="#0"><span>Menu</span></a>
+
+    </header> <!-- end s-header -->
+
+<section id="content" class="body">
+  <header>
+    <h2 class="entry-title">
+      <a href="/My-first-post.html" rel="bookmark"
+         title="Permalink to Understand the PDF Format">Understand the PDF Format</a></h2>
+ 
+  </header>
+  <footer class="post-info">
+    <time class="published" datetime="2019-09-15T10:01:00+02:00">
+      Sun 15 September 2019
+    </time>
+    <address class="vcard author">
+      By           <a class="url fn" href="/author/yang-yuchi.html">Yang Yuchi</a>
+    </address>
+    <div class="category">
+        Category: <a href="/category/nlp.html">NLP</a>
+    </div>
+    <div class="tags">
+        Tags:
+            <a href="/tag/pdf.html">pdf</a>
+            <a href="/tag/nlp.html">nlp</a>
+            <a href="/tag/python.html">python</a>
+            <a href="/tag/text-mining.html">text mining</a>
+    </div>
+  </footer><!-- /.post-info -->
+  <div class="entry-content">
+    <h2>1. Introduction</h2>
+<p><a href="https://en.wikipedia.org/wiki/PDF"><strong>PDF (Portable Document Format)</strong></a> is one of the most widely used file format in our daily life. Developed in the 1990s by Adobe, it aims to present documents in an easy and stable manner, independent of the applications and operating systems. This matches our impression: no matter we view a PDF document on Macbook or on Windows laptops, with Adobe Reader or Mac Preview, its appearance barely changes. As comparison, if we write a <em>.doc</em> Word document in Windows and open it with Pages in Mac OS, we often have problems with format, font etc. </p>
+<p>People often feel that PDF and other document file formats such as Word are similar, but in essence there's huge difference between them. In this article I will explain why PDF is so stable, what a PDF file consists of and how we can utilize these knowledge to extract text from PDF documents using Python. </p>
+<h2>2. How PDF Display Texts</h2>
+<p>Maybe you have already noticed that when generating PDF documents, softwares often use words like "<strong>Export</strong>" or "<strong>Print</strong>". This indicates that the editing stage should already be finalized before the "Export". Once the document is "printed" out, we would not like to change the content any more. <strong>In fact, the process of "printing" a PDF document is just like how printers print a paper in the real world.</strong> </p>
+<p>To understand how PDF files are "printed", we create a Word document with a single line "Hello World" aligned to the middle and export it as PDF. </p>
+<p><center class="half">
+<img src="../images/word_hello.png" style="zoom:20%" /><img src="../images/pdf_hello.png" style="zoom:20%" />
+</center></p>
+<p>Let's see how Word realizes the above display. We can decompress the <code>HelloWorld.doc</code> file (yes, like .rar files, it's a compressed package) and find the file <code>word/document.xml</code>. It regulates how this line of text is displayed. Here we have picked out some of the most important snippets.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">&lt;w:pPr&gt;</span>
+  <span class="nt">&lt;w:jc</span> <span class="na">w:val=</span><span class="s">&quot;center&quot;</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;w:rPr&gt;</span>
+    <span class="nt">&lt;w:rFonts</span> <span class="na">w:ascii=</span><span class="s">&quot;Times&quot;</span> <span class="na">w:hAnsi=</span><span class="s">&quot;Times&quot;</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;w:sz</span> <span class="na">w:val=</span><span class="s">&quot;72&quot;</span><span class="nt">/&gt;&lt;w:szCs</span> <span class="na">w:val=</span><span class="s">&quot;72&quot;</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;/w:rPr&gt;</span>
+<span class="nt">&lt;/w:pPr&gt;</span>
+<span class="nt">&lt;w:r&gt;</span>
+  <span class="nt">&lt;w:rPr&gt;</span>
+    <span class="nt">&lt;w:rFonts</span> <span class="na">w:ascii=</span><span class="s">&quot;Times&quot;</span> <span class="na">w:hAnsi=</span><span class="s">&quot;Times&quot;</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;w:sz</span> <span class="na">w:val=</span><span class="s">&quot;72&quot;</span><span class="nt">/&gt;&lt;w:szCs</span> <span class="na">w:val=</span><span class="s">&quot;72&quot;</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;/w:rPr&gt;</span>
+  <span class="nt">&lt;w:t&gt;</span>Hello World<span class="nt">&lt;/w:t&gt;</span>
+<span class="nt">&lt;/w:r&gt;</span>
+</code></pre></div>
+
+<p>Like HTML, XML is a <strong>Markup Language</strong>: it uses different <strong>tags</strong> to wrap the text and <strong>describes</strong> its characteristics, in the example above we see font <em>Times</em> and alignment <em>center</em> are tagged to text <em>Hello World</em>. Using markup language is pretty like giving orders to human: "hey, please write the text 'Hello World' with Times font and align it to the center". This sounds easy but actually lacks of precision. Different softwares may use different ways to interpret this order: How to align the text? What if we don't have Times font? Where should be "<em>the center</em>"?  </p>
+<p><strong>With PDF format, we don't have those concerns at all.</strong> Other than <strong>descriptive</strong> markups,  PDF format uses an <strong>absolute</strong>, <strong>command-like</strong> language to render texts. Let's open our Hello Word PDF document with PyPDF2 package and see what's going on.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">PyPDF2</span>
+<span class="n">pdf</span> <span class="o">=</span> <span class="n">PyPDF2</span><span class="o">.</span><span class="n">PdfFileReader</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s1">&#39;Hello_World.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+<span class="n">page</span> <span class="o">=</span> <span class="n">pdf</span><span class="o">.</span><span class="n">getPage</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">page</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">page</span><span class="p">[</span><span class="s1">&#39;/Contents&#39;</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">page</span><span class="p">[</span><span class="s1">&#39;/Contents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">())</span>
+</code></pre></div>
+
+<pre>{'/Type': '/Page', '/Parent': IndirectObject(3, 0), '/Resources': IndirectObject(6, 0), 
+'/Contents': IndirectObject(4, 0), '/MediaBox': [0, 0, 595, 842]}
+
+<class 'PyPDF2.generic.EncodedStreamObject'>
+b'q Q q /Cs1 cs 0 0 0 sc q 0.24 0 0 0.24 18 621.92 cm BT 150 0 0 150 787 481\nTm /TT1 1 Tf [
+(H) 2 (e) -2.7 (l) -2 (l) -2 (o ) 3.3 (W) -2.7 (or) -0.3 (l)\n-2 (d) ] TJ ET Q q 0.24 0 0 
+0.24 18 621.92 cm BT 150 0 0 150 1541 481 Tm /TT1\n1 Tf ( ) Tj ET Q Q'</pre>
+
+<p>Here we read the PDF file in binary mode. The <em>getPage()</em> method returns a PageObject containing all contents and resources of a page, which are saved as dictionary. Text content is a <strong>EncodedStreamObject</strong> which can be accessed via <em>page['/Contents'].getData()</em>. We select and rearrange the content as follows: </p>
+<div class="highlight"><pre><span></span><code><span class="err">BT</span>
+<span class="err">150 0 0 150 787 481 Tm</span>
+<span class="err">/TT1 1 Tf</span>
+<span class="err">[(H) 2 (e) -2.7 (l) -2 (l) -2 (o ) 3.3 (W) -2.7 (or) -0.3 (l) -2 (d) ] TJ</span>
+<span class="err">ET</span>
+</code></pre></div>
+
+<p>Basically, the content consists of a sequence of <strong>instructions</strong> describing the graphical elements to be painted on a page. Each instruction has an operant and an operator. Details of these operators can be found in the <a href="https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf">offical pdf documentation</a>. Let's translate the above instructions into human language: </p>
+<ol>
+<li>Use BT operator to indicate begin of text; </li>
+<li>Use Tm operator to set the text matrix, where (787, 481) indicates the position; </li>
+<li>Use Tf operator to set the font to refer to /TT1, with text font size 1; </li>
+<li>Use TJ operator to show the text, allowing individual glygh positioning, where the numbers are position offsets, this kind of denoting is especially useful for <a href="https://en.wikipedia.org/wiki/Kerning">text kerning</a>;</li>
+<li>Use ET operator to indicate end of text.</li>
+</ol>
+<p>Now we see the difference from the <em>.doc</em> format. The "language" of PDF format is very low level. Instead of using vague words like "center", it moves to the absolute coordinate on the paper to draw the text; instead of telling the software to use "Times" font, it directly refers to the font object ''/TT1'' which is embedded as part of the document. It even uses precise offsets for each glyph when rendering text.</p>
+<p>This well explains why PDF format is stable and portable. On one hand, it uses <strong>absolute instructions</strong> other than <strong>ambigous descriptions</strong>. No matter using which software, it always goes to the exact positions on the paper to draw the text. On the other hand, it embeds all resources required to draw the content, like the  "/TT1" FontObject used in our document.</p>
+<p>In the following section we will take a closer look at the structure of PDF format.</p>
+<h2>3. Structure of PDF Format</h2>
+<p><img src="../images/pdf_structure.png" alt="img" style="zoom:80%;" /></p>
+<p>The structure of PDF file consists of four parts, as shown in the above figure:</p>
+<ul>
+<li><strong>Header</strong>: a line preceded by a comment sign (%) and then the version number of the PDF document. </li>
+<li><strong>Body</strong>: this is the main content of the PDF document, which encompasses different objects, such as image data, fonts and text streams. Some of the objects might be invisible (e.g. kryptographic passwords). </li>
+<li><strong>Cross-Reference Table</strong> (also called <strong>xref Table</strong>): it contains links (byte offsets) to all objects in the file, which can be used to navigate to contents in a document. By looking at the entries in this table, a PDF reader can easily locate an object within the file. This table will be automatically updated when there are changes in the file. </li>
+<li><strong>Trailer</strong>: The trailer contains offset of cross-reference table and always ends up with "%%EOF" to mark the end of a PDF file. </li>
+</ul>
+<p>When a PDF reader opens the file, it first determines the file type and version number from the header, then directly goes to the trailer to get the location of the xref table. According to the xref table, it can get the location of each object and the reference relationship between them.</p>
+<p>Our document has the same structure, we can validate this by opening it as binary file as print its contents. (Here we only print the first 500 and last 1000 bytes to make it shorter)</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;Hello_World.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">[:</span><span class="mi">500</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-&#39;</span> <span class="o">*</span> <span class="mi">90</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1000</span><span class="p">:])</span>
+</code></pre></div>
+
+<pre>b'%PDF-1.3\n%\xc4\xe5\xf2\xe5\xeb\xa7\xf3\xa0\xd0\xc4\xc6\n4 0 obj\n<< /Length 5 0 R /Filter 
+/FlateDecode
+>>\nstream\nx\x01\x8d\x8e1\x0f\x82@\x0c\x85w~\xc57\xde\r\x1e\xd7\x03\x04W\x8d\x89q#i\xe2`\x9
+cP\x07\x02!\xc8\xffO\xe4@\x9dM\x87\xf7\xfa\xda\xb4\xdfH\xcdHz\x98\x84f\xc2/55s\xe4]\xc8\xd7>
+\x1a\xa9\xd8\x06q\xbb@\xd3\xb3W\xa4XW\xa3\x96UI^I\xa2=\xa9\xaa 
+\xe8\x93+\xe6d\t\x98\x87e\x13\\\x89\xe9\xa2\xf9\xc9\x80%s\x19\xe6\xf2\x9d\x0f\xaf\xd9\xf9\x1
+8u6\x89\x9bw\xcb\r=s\xd4\x85\xf1\x7f 
+)r\x89D|\x88\x92\x85\xc8\xcc\x1f\xb5]\xaf\xd5o\xeb\x0c3\x0b\nendstream\nendobj\n5 0 
+obj\n149\nendobj\n2 0 obj\n<< /Type /Page /Parent 3 0 R /Resources 6 0 R /Contents 4 0 R 
+/MediaBox [0 0 595 842]\n>>\nendobj\n6 0 obj\n<< /ProcSet [ /PDF /Text ] /ColorSpace << /Cs1
+7 0 R >> /Font << /TT1 8 0 R\n>> >>\nendobj\n9 0 obj\n<< /Length 10 0 R /N 3 /Alt'
+------------------------------------------------------------------------------------------
+b'Version 10.14.6 \\(Build 18G95\\) Quartz PDFContext)\nendobj\n17 0 
+obj\n(\xfe\xffgh[\x87\x9ap)\nendobj\n18 0 obj\n()\nendobj\n19 0 obj\n(Word)\nendobj\n20 0 
+obj\n(D:20191005174709Z00'00')\nendobj\n21 0 obj\n()\nendobj\n22 0 obj\n[ ]\nendobj\n1 0 
+obj\n<< /Title 15 0 R /Author 17 0 R /Subject 18 0 R /Producer 16 0 R /Creator\n19 0 R 
+/CreationDate 20 0 R /ModDate 20 0 R /Keywords 21 0 R /AAPL:Keywords\n22 0 R 
+>>\nendobj\nxref\n0 23\n0000000000 65535 f \n0000009404 00000 n \n0000000264 00000 n 
+\n0000003235 00000 n \n0000000022 00000 n \n0000000245 00000 n \n0000000368 00000 n 
+\n0000003200 00000 n \n0000003368 00000 n \n0000000465 00000 n \n0000003179 00000 n 
+\n0000003318 00000 n \n0000003723 00000 n \n0000003976 00000 n \n0000009129 00000 n 
+\n0000009150 00000 n \n0000009180 00000 n \n0000009254 00000 n \n0000009281 00000 n 
+\n0000009300 00000 n \n0000009323 00000 n \n0000009365 00000 n \n0000009384 00000 n 
+\ntrailer\n<< /Size 23 /Root 11 0 R /Info 1 0 R /ID [ 
+<ae4870440264b01443903d5b90f080f3>\n<ae4870440264b01443903d5b90f080f3> ] 
+>>\nstartxref\n9579\n%%EOF\n' </pre>
+
+<p>Here we can clearly see all the four parts of a PDF document. Apart from them, there are several things worth noticing:</p>
+<ol>
+<li>
+<p>A PDF file is an <strong>ASCII</strong> file, except for certain elements that have binary contents. Thus when we open a PDF in binary mode, most contents are human-readable because python automatically prints bytes within ASCII range as characters. Bytes shown as hex numbers are mostly content in a stream which cannot be decoded directly with ASCII. </p>
+</li>
+<li>
+<p>There are lots of references inside the file, they appear in form of <code>n 0 R</code> where n is the ID of the object it refers to, whereas objects have the form <code>n 0 obj endobj</code>. For example, when we look at the "/Creater", instead of using the actual content, it just refers to the object <code>19, 0, R</code>. Look a little bit upwards, we can find how this object is defined: a string "Word" because this pdf is exported from MS Word Application <code>19 0 obj\n(Word)\nendobj</code>.</p>
+</li>
+</ol>
+<p>Since the objects in a PDF file are highly dependent on each other, we should avoid altering contents of a pdf file. Imagine these objects as Lego bricks, moving one brick away can cause the entire structure to be destroyed. Even adding building blocks is expensive because other blocks also need to be adjusted. Remember, PDF format is designed for displaying and transporting, not for editing, like we don't want to alter content on a printed paper document. </p>
+<h2>4. Extract Text from PDF File</h2>
+<p>In the domain of Text Mining, text data are often not directly available. Text data may come from a variety of sources, including PDF documents. Based on the knowledge we learn in previous sections, we will have a look at how to extract text from PDF documents using python.  </p>
+<h3>4.1 Embedded Text</h3>
+<p>When text is embedded in the file, we can parse the operations and operators in the stream to get the text. With PyPDF2, we can use the <em>extractText()</em> method.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">PyPDF2</span>
+<span class="n">pdf</span> <span class="o">=</span> <span class="n">PyPDF2</span><span class="o">.</span><span class="n">PdfFileReader</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s1">&#39;Hello_World.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+<span class="n">page</span> <span class="o">=</span> <span class="n">pdf</span><span class="o">.</span><span class="n">getPage</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">extractText</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="err">Hello World</span>
+</code></pre></div>
+
+<p>The <em>extractText()</em> method first get the content object from the page and convert it into a ContentStream. This ContentStream parses all operants and operators and save them into a list. When extracting text, the programm examines every operation and do actions according to the operator, e.g. if the operator is "TJ" like in our case, the programm go through each glygh and append them to the text. The source code for this method is as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">extractText</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">u_</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;/Contents&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">getObject</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">ContentStream</span><span class="p">):</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">ContentStream</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pdf</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">operands</span><span class="p">,</span> <span class="n">operator</span> <span class="ow">in</span> <span class="n">content</span><span class="o">.</span><span class="n">operations</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">operator</span> <span class="o">==</span> <span class="n">b_</span><span class="p">(</span><span class="s2">&quot;Tj&quot;</span><span class="p">):</span>
+            <span class="n">_text</span> <span class="o">=</span> <span class="n">operands</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_text</span><span class="p">,</span> <span class="n">TextStringObject</span><span class="p">):</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="n">_text</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="n">operator</span> <span class="o">==</span> <span class="n">b_</span><span class="p">(</span><span class="s2">&quot;T*&quot;</span><span class="p">):</span>
+            <span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="n">operator</span> <span class="o">==</span> <span class="n">b_</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">):</span>
+            <span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">_text</span> <span class="o">=</span> <span class="n">operands</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_text</span><span class="p">,</span> <span class="n">TextStringObject</span><span class="p">):</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="n">operands</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">operator</span> <span class="o">==</span> <span class="n">b_</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">):</span>
+            <span class="n">_text</span> <span class="o">=</span> <span class="n">operands</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_text</span><span class="p">,</span> <span class="n">TextStringObject</span><span class="p">):</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="n">_text</span>
+        <span class="k">elif</span> <span class="n">operator</span> <span class="o">==</span> <span class="n">b_</span><span class="p">(</span><span class="s2">&quot;TJ&quot;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">operands</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">TextStringObject</span><span class="p">):</span>
+                    <span class="n">text</span> <span class="o">+=</span> <span class="n">i</span>
+            <span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="n">text</span>
+</code></pre></div>
+
+<h4>Problems of extractText() method</h4>
+<ul>
+<li><strong>Lack layout analysis</strong></li>
+</ul>
+<p>As we see in the source code, there's no support for some important operators, such as "<em>Tm</em>" and "<em>Td</em>". This can lead to problematic layout. I have seen pdf documents which use <em>Tj</em> operator to show texts and <em>Tm</em> operator to move to next position like below:</p>
+<div class="highlight"><pre><span></span><code><span class="err">BT</span>
+<span class="err">/F2 11 Tf</span>
+<span class="err">1 0 -0 1 62.35 640.85 Tm</span>
+<span class="err">Hello Tj</span>
+<span class="err">ET</span>
+<span class="err">BT</span>
+<span class="err">1 0 -0 1 62.35 630.35 Tm</span>
+<span class="err">World Tj</span>
+<span class="err">ET</span>
+</code></pre></div>
+
+<p>If we use <em>extractText()</em> to extract the text, the whitespace between "Hello" and "World" will be missing because it is implictly added by moving the coordinate with <em>Tm</em> operator.</p>
+<p>A good alternative is the <a href="https://github.com/pdfminer/pdfminer.six">pdfminer</a> package. It supports much more powerful text extraction functionality with precise layout analysis. It handles almost every kind of operator and records the coordinate of each single character.</p>
+<ul>
+<li><strong>Lack unicode mapping</strong></li>
+</ul>
+<p>Some <a href="https://en.wikipedia.org/wiki/Unicode_font">Unicode Fonts</a> don't use ASCII to encode and decode characters. As a test, if we write our "Hello World" with Arial font in Word and export to PDF, <em>extractText()</em> can't decode the text correctly.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">PyPDF2</span>
+<span class="n">pdf</span> <span class="o">=</span> <span class="n">PyPDF2</span><span class="o">.</span><span class="n">PdfFileReader</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s1">&#39;Hello_World_Arial.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+<span class="n">page</span> <span class="o">=</span> <span class="n">pdf</span><span class="o">.</span><span class="n">getPage</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">extractText</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="sx">!&quot;##$%&amp;$&#39;#(</span>
+<span class="c">%</span>
+</code></pre></div>
+
+<p>Instead of "Hello World", what we see are some strange characters. When we inspect the content of the font, it has an additional "/ToUnicode" feature which Times font doesn't have.</p>
+<div class="highlight"><pre><span></span><code><span class="n">tt2</span> <span class="o">=</span> <span class="n">page</span><span class="p">[</span><span class="s1">&#39;/Resources&#39;</span><span class="p">][</span><span class="s1">&#39;/Font&#39;</span><span class="p">][</span><span class="s1">&#39;/TT2&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">getObject</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tt2</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="err">dict_items([(&#39;/Type&#39;, &#39;/Font&#39;), (&#39;/Subtype&#39;, &#39;/TrueType&#39;), (&#39;/BaseFont&#39;, </span>
+<span class="err">&#39;/HBUUFJ+ArialMT&#39;), (&#39;/FontDescriptor&#39;, IndirectObject(13, 0)), (&#39;/ToUnicode&#39;, </span>
+<span class="err">IndirectObject(14, 0)), (&#39;/FirstChar&#39;, 33), (&#39;/LastChar&#39;, 40), (&#39;/Widths&#39;, [722, 556, </span>
+<span class="err">222, 556, 278, 944, 333, 556])])</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="n">tt2</span><span class="p">[</span><span class="s1">&#39;/ToUnicode&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="err">b&#39;/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo &lt;&lt;\n  </span>
+<span class="err">/Registry (Adobe)\n  /Ordering (UCS)\n  /Supplement 0\n&gt;&gt; def\n/CMapName /Adobe-Identity-</span>
+<span class="err">UCS def\n/CMapType 2 def\n1 begincodespacerange\n&lt;00&gt;&lt;FF&gt;\nendcodespacerange\n8 </span>
+<span class="err">beginbfrange\n&lt;21&gt;&lt;21&gt;&lt;0048&gt;\n&lt;22&gt;&lt;22&gt;&lt;0065&gt;\n&lt;23&gt;&lt;23&gt;&lt;006c&gt;\n&lt;24&gt;&lt;24&gt;&lt;006f&gt;\n&lt;25&gt;&lt;25&gt;</span>
+<span class="err">&lt;0020&gt;\n&lt;26&gt;&lt;26&gt;&lt;0057&gt;\n&lt;27&gt;&lt;27&gt;&lt;0072&gt;\n&lt;28&gt;&lt;28&gt;&lt;0064&gt;\nendbfrange\nendcmap\nCMapName </span>
+<span class="err">currentdict /CMap defineresource pop\nend\nend\n&#39;</span>
+</code></pre></div>
+
+<p>Inside the "/ToUnicode" object, we can find a so-called CMap which maps Char IDs to Unicode UTF-16BE character. When decoding the bytes, the program should map the original ID to Unicode to get the correct results. In the above example, the original byte of "!" is <em>0x21</em> (because ASCII code of "!" is decimal 33, hexadecimal 21), which should be mapped to <em>0x0048</em> (decimal 72), corresponding to the character "H". Similarly we can decode other bytes according to the CMap and get the correct result.</p>
+<p>We can use CMapParser and FileUnicodeMap in pdfminer package to parse above font stream.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">from</span> <span class="nn">pdfminer.cmapdb</span> <span class="kn">import</span> <span class="n">CMapParser</span><span class="p">,</span> <span class="n">FileUnicodeMap</span>
+<span class="n">cmap</span> <span class="o">=</span> <span class="n">FileUnicodeMap</span><span class="p">()</span>
+<span class="n">CMapParser</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">tt2</span><span class="p">[</span><span class="s1">&#39;/ToUnicode&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">()))</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cmap</span><span class="o">.</span><span class="n">cid2unichr</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="err">{33: &#39;H&#39;, 34: &#39;e&#39;, 35: &#39;l&#39;, 36: &#39;o&#39;, 37: &#39; &#39;, 38: &#39;W&#39;, 39: &#39;r&#39;, 40: &#39;d&#39;}</span>
+</code></pre></div>
+
+<p>Having this CMap, we can decode the bytes correctly:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">struct</span>
+<span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<span class="k">for</span> <span class="n">cid</span> <span class="ow">in</span> <span class="n">struct</span><span class="o">.</span><span class="n">iter_unpack</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s2">&quot;!</span><span class="se">\&quot;</span><span class="s2">##$%&amp;$&#39;#(&quot;</span><span class="p">):</span>
+    <span class="n">text</span> <span class="o">+=</span> <span class="n">cmap</span><span class="o">.</span><span class="n">get_unichr</span><span class="p">(</span><span class="n">cid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="err">Hello World</span>
+</code></pre></div>
+
+<p>You may ask why do we still use PyPDF2, if pdfminer works better than it? Well, my experience is that both tools are quite good but not perfect. It really depends on your situation, as the structure of pdf documents can be very complicated in real scenarios. There are situations where PyPDF2 outperforms pdfminer as well, and PyPDF2 is more extendable if you want to overwrite some functions.</p>
+<p>Another popular tool is the command-line based <a href="https://www.xpdfreader.com/pdftotext-man.html">pdftotext</a>, which is part of the Xpdf software suite. In some of my experiments it works better than the other two python packages.</p>
+<h3>4.2 Text in Images</h3>
+<p>In some PDF documents, texts are not embedded as content streams, but as images. For example if we scan a book and save the pages as pdf, the texts cannot be directly extracted using previous methods. In this situation, we should use OCR tools such as <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a> to extract text from images. </p>
+<p>After installing Tesseract, we can use it in python with the <a href="https://gitlab.gnome.org/World/OpenPaperwork/pyocr">pyocr</a> package, often used together with <a href="https://github.com/python-imaging/Pillow">Pillow</a>.  An example:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">pyocr</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="k">with</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;xxx.png&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">img</span><span class="p">:</span>
+    <span class="n">tool</span> <span class="o">=</span> <span class="n">pyocr</span><span class="o">.</span><span class="n">get_available_tools</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># 0 for tesseract</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">image_to_string</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">lang</span><span class="o">=</span><span class="s1">&#39;eng&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Normally we can first convert PDF pages to images using <a href="https://www.xpdfreader.com/pdftopng-man.html">pdftopng</a> or extract images using <a href="https://www.xpdfreader.com/pdfimages-man.html">pdfimages</a> then apply OCR to images. </p>
+<p>Another approach is to build PIL.Image objects directly from raw bytes and do text extraction on the fly. In PDF documents, Images are integrated as XObjects which can be accessed via PyPDF2 like this:</p>
+<div class="highlight"><pre><span></span><code><span class="n">obj</span> <span class="o">=</span> <span class="n">pdf</span><span class="o">.</span><span class="n">getPage</span><span class="p">(</span><span class="n">PAGE_ID</span><span class="p">)[</span><span class="s1">&#39;/Resources&#39;</span><span class="p">][</span><span class="s1">&#39;/XObject&#39;</span><span class="p">][</span><span class="n">NAME_OF_OBJECT</span><span class="p">]</span>
+</code></pre></div>
+
+<p>Images are typically encoded for compression purpose. Reconstructing image from raw bytes is non-trivial. You can take a look at this question on StackOverflow <a href="https://stackoverflow.com/questions/2693820/extract-images-from-pdf-without-resampling-in-python">Extract images from PDF without resampling, in python?</a></p>
+  </div><!-- /.entry-content -->
+</section>
+
+    <!-- Java Script
+    ================================================== -->
+    <script src="/theme/js/jquery-3.2.1.min.js"></script>
+    <script src="/theme/js/plugins.js"></script>
+    <script src="/theme/js/main.js"></script>
+
+</body>
+
+</html>

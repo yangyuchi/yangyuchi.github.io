@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--[if lt IE 9 ]><html class="no-js oldie" lang="en"> <![endif]-->
+<!--[if IE 9 ]><html class="no-js oldie ie9" lang="en"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+
+    <!--- basic page needs
+    ================================================== -->
+    <meta charset="utf-8">
+    <title>Yuchi's Blog</title>
+    <meta name="description" content="This is my personal blog.">
+    <meta name="author" content="">
+
+    <!-- mobile specific metas
+    ================================================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS
+    ================================================== -->
+    <link rel="stylesheet" href="/theme/css/base.css" type="text/css" />
+    <link rel="stylesheet" href="/theme/css/vendor.css" type="text/css" />
+    <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+
+    <!-- script
+    ================================================== -->
+    <script src="/theme/js/modernizr.js"></script>
+    <script src="/theme/js/pace.min.js"></script>
+
+    <!-- favicons
+    ================================================== -->
+    <link rel="shortcut icon" href="/theme/images/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/theme/images/favicon.ico" type="image/x-icon">
+
+</head>
+
+<body id="top">
+
+    <!-- header
+    ================================================== -->
+    <header class="s-header">
+
+        <div class="header-logo">
+            <a class="site-logo" href="index.html"><img src="/theme/images/logo.png" alt="Homepage"></a>
+        </div>
+
+        <nav class="header-nav-wrap">
+            <ul class="header-nav">
+                <li class="current"><a class="smoothscroll"  href="#home" title="home">Home</a></li>
+                <li><a class="smoothscroll"  href="#about" title="about">About</a></li>
+                <li><a class="smoothscroll"  href="#blog" title="blog">Blog</a></li>
+                <li><a class="smoothscroll"  href="#projects" title="projects">Projects</a></li>
+                <li><a class="smoothscroll"  href="#gallery" title="gallery">Gallery</a></li>
+                <li><a class="smoothscroll"  href="#contact" title="contact">Contact</a></li>
+            </ul>
+        </nav>
+
+        <a class="header-menu-toggle" href="#0"><span>Menu</span></a>
+
+    </header> <!-- end s-header -->
+
+<section id="content" class="body">
+  <header>
+    <h2 class="entry-title">
+      <a href="/My-second-post.html" rel="bookmark"
+         title="Permalink to Developing a Kubernetes Job Scheduler with FastAPI, apscheduler and Vue.js (Series: 01)">Developing a Kubernetes Job Scheduler with FastAPI, apscheduler and Vue.js (Series: 01)</a></h2>
+ 
+  </header>
+  <footer class="post-info">
+    <time class="published" datetime="2020-12-26T10:01:00+01:00">
+      Sat 26 December 2020
+    </time>
+    <address class="vcard author">
+      By           <a class="url fn" href="/author/yang-yuchi.html">Yang Yuchi</a>
+    </address>
+    <div class="category">
+        Category: <a href="/category/machine-learning.html">Machine Learning</a>
+    </div>
+    <div class="tags">
+        Tags:
+            <a href="/tag/python.html">python</a>
+            <a href="/tag/api.html">API</a>
+    </div>
+  </footer><!-- /.post-info -->
+  <div class="entry-content">
+    <h2>Introduction</h2>
+<p>In recent years, the focus of machine learning in industry has strongly swifted from model exploration and hyper-parameter tuning to model productionization. After all, a model which just exists in Jupyter Notebook cannot be used by other applications in production environment.</p>
+<p>There are a lot of articles and tutorials talking about how to serve a model as API with some kind of web framework like Flask, but only few talks about batch processing. Actually, there are many situations where serving model as API is not an economic choice. For example in my latest project, we only deliver the model predictions to frontend team once a day. Thus scheduling a cronjob is much more economic because compute resource is only allocated during job runtime.</p>
+<p>However, developing a job scheduling system might not be as easy as you think. We not only want to just add a Kubernetes (Cron)Job, but also monitor job executions and collect results from multiple jobs (e.g. in model A/B test). </p>
+<p>In this series, I will go through all steps and details to develop a Kubernetes job scheduler and hope it can help.</p>
+<h2>First FastAPI Application with a Job Scheduler</h2>
+<h3>Scheduler</h3>
+<p>Let's start with the scheduler module. <a href="https://apscheduler.readthedocs.io/en/stable/">APScheduler</a> is a very powerful and easy to use package to schedule jobs in python. Since FastAPI is an asynchronous Web framework, we use <strong>AsyncIOScheduler</strong> in our project. After instantiation we directly call <em>start()</em> method so that our scheduler starts when this module is imported. Normally we have to define more options for the scheduler but for now we keep it simple.</p>
+<p><strong><code>./core/scheduler.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">apscheduler.schedulers.asyncio</span> <span class="kn">import</span> <span class="n">AsyncIOScheduler</span>
+
+<span class="n">my_scheduler</span> <span class="o">=</span> <span class="n">AsyncIOScheduler</span><span class="p">()</span>
+</code></pre></div>
+
+<h3>Job Class</h3>
+<p>Our scheduler calls <code>add_job()</code> method to add jobs, where we can specify which function we want to run in our job. But since we want to add jobs through API, it is important to have a general structure for all jobs, otherwise we have to write for each job a seperate endpoint with different parameters which soon burns us out. </p>
+<p>Here we define a Base class which specifies all components for a Job class. Basically each Job class should have a description and a set of parameters required by job functions. Besides, we have a <code>meta_info()</code> method to get those information and a <code>run()</code> method where the actuall work takes place.</p>
+<p><strong><code>./core/job/_base.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">abc</span>
+
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+
+<span class="k">class</span> <span class="nc">JobBase</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">,</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">meta_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Meta info of the job&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;job_class&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__fields__</span><span class="p">[</span><span class="s2">&quot;arguments&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get_default</span><span class="p">(),</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__fields__</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get_default</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Each Job must has a run() method&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Job must has a run method!&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here is an example job:</p>
+<p><strong><code>./core/job/test_job.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">._base</span> <span class="kn">import</span> <span class="n">JobBase</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">PrintHello</span><span class="p">(</span><span class="n">JobBase</span><span class="p">):</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Just for Test&quot;</span>
+    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;times&quot;</span><span class="p">:</span> <span class="s2">&quot;How many hellos to print (int)&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;args&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s2">&quot;times&quot;</span><span class="p">])):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Hello!&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>In order to manage all job classes together and make it easier for module importation,  we add the following content in <code>__init__.py</code>. </p>
+<p><strong><code>./core/job/__init__.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">from</span> <span class="nn">importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isclass</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">pkgutil</span> <span class="kn">import</span> <span class="n">iter_modules</span>
+
+<span class="kn">from</span> <span class="nn">._base</span> <span class="kn">import</span> <span class="n">JobBase</span>
+
+<span class="c1"># https://julienharbulot.com/python-dynamical-import.html</span>
+<span class="n">package_dir</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">module_name</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">iter_modules</span><span class="p">([</span><span class="n">package_dir</span><span class="p">]):</span>
+
+    <span class="n">module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">module_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">attribute_name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+        <span class="n">attribute</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">attribute_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">isclass</span><span class="p">(</span><span class="n">attribute</span><span class="p">):</span>
+            <span class="nb">globals</span><span class="p">()[</span><span class="n">attribute_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">attribute</span>
+</code></pre></div>
+
+<p>FastAPI utilizes Pydantic models to validate schemas of API calls. Thus we also need to define schemas for Job creation. To create a job, we need to specify a name, the job_class, arguments, job_type (cron or single) and crontab. Creation time will be assigned later during job creation in our endpoint.</p>
+<p><strong><code>./schemas/job.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+
+<span class="k">class</span> <span class="nc">TypeEnum</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+    <span class="n">cron</span> <span class="o">=</span> <span class="s2">&quot;cron&quot;</span>
+    <span class="n">single</span> <span class="o">=</span> <span class="s2">&quot;single&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">ActionEnum</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+    <span class="n">resume</span> <span class="o">=</span> <span class="s2">&quot;resume&quot;</span>
+    <span class="n">pause</span> <span class="o">=</span> <span class="s2">&quot;pause&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">JobCreate</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">job_class</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">job_type</span><span class="p">:</span> <span class="n">TypeEnum</span>
+    <span class="n">crontab</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">created_time</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+<h3>Endpoints</h3>
+<p>Now we are ready to implement endpoints to query job classes and add/list/delete jobs. </p>
+<p>Before adding a job, we may need to query which job classes are availble through the <code>/job_classes</code> endpoint.</p>
+<p><strong><code>./api/api_v1/api.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span>
+
+<span class="kn">from</span> <span class="nn">.endpoints</span> <span class="kn">import</span> <span class="n">job_classes</span><span class="p">,</span> <span class="n">jobs</span>
+
+<span class="n">api_router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+<span class="n">api_router</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">jobs</span><span class="o">.</span><span class="n">router</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/jobs&quot;</span><span class="p">)</span>
+<span class="n">api_router</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">job_classes</span><span class="o">.</span><span class="n">router</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/job_classes&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><strong><code>./api/api_v1/endpoints/job_classes.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span>
+<span class="kn">from</span> <span class="nn">....core.jobs</span> <span class="kn">import</span> <span class="n">JobBase</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_job_classes</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">j</span><span class="o">.</span><span class="n">meta_info</span><span class="p">()</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">JobBase</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">()]</span>
+</code></pre></div>
+
+<p>The <code>/jobs</code> endpoint handles all operations of jobs, including adding a job, deleting a job, change job state and list jobs.</p>
+<p><strong><code>./api/api_v1/endpoints/jobs.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
+
+<span class="kn">from</span> <span class="nn">apscheduler.triggers.cron</span> <span class="kn">import</span> <span class="n">CronTrigger</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">Body</span><span class="p">,</span> <span class="n">HTTPException</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">desc</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">Session</span>
+
+<span class="kn">from</span> <span class="nn">....core.database</span> <span class="kn">import</span> <span class="n">SessionLocal</span>
+<span class="kn">from</span> <span class="nn">....core.jobs</span> <span class="kn">import</span> <span class="n">JobBase</span>
+<span class="kn">from</span> <span class="nn">....core.scheduler</span> <span class="kn">import</span> <span class="n">my_scheduler</span>
+<span class="kn">from</span> <span class="nn">....schemas.job</span> <span class="kn">import</span> <span class="n">ActionEnum</span><span class="p">,</span> <span class="n">JobCreate</span>
+<span class="kn">from</span> <span class="nn">....utils</span> <span class="kn">import</span> <span class="n">generate_uuid</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+<span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">add_job</span><span class="p">(</span><span class="n">job</span><span class="p">:</span> <span class="n">JobCreate</span><span class="p">):</span>
+    <span class="n">job_class</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+        <span class="p">(</span>
+            <span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">JobBase</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">j</span><span class="o">.</span><span class="n">meta_info</span><span class="p">()[</span><span class="s2">&quot;job_class&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">job</span><span class="o">.</span><span class="n">job_class</span>
+        <span class="p">),</span>
+        <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job_class</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Job Class </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_class</span><span class="si">}</span><span class="s2"> not found!&quot;</span><span class="p">}</span>
+
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">generate_uuid</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">job</span><span class="o">.</span><span class="n">created_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">job_type</span> <span class="o">==</span> <span class="s2">&quot;cron&quot;</span><span class="p">:</span>
+        <span class="n">trigger</span> <span class="o">=</span> <span class="n">CronTrigger</span><span class="o">.</span><span class="n">from_crontab</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">crontab</span><span class="p">)</span>
+        <span class="n">my_scheduler</span><span class="o">.</span><span class="n">add_job</span><span class="p">(</span>
+            <span class="n">job_class</span><span class="o">.</span><span class="n">run</span><span class="p">,</span>
+            <span class="n">trigger</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">kwargs</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">dict</span><span class="p">()</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">my_scheduler</span><span class="o">.</span><span class="n">add_job</span><span class="p">(</span>
+            <span class="n">job_class</span><span class="o">.</span><span class="n">run</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">kwargs</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">dict</span><span class="p">(),</span>
+            <span class="n">next_run_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">misfire_grace_time</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> created!&quot;</span><span class="p">}</span>
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_jobs</span><span class="p">():</span>
+    <span class="n">job_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">my_scheduler</span><span class="o">.</span><span class="n">get_jobs</span><span class="p">():</span>
+        <span class="n">job_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;job_class&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;job_class&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;created_time&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;created_time&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="si">%a</span><span class="s2">, </span><span class="si">%d</span><span class="s2"> %b %Y %H:%M:%S %Z&quot;</span>
+                <span class="p">),</span>
+                <span class="s2">&quot;nextrun&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">next_run_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="si">%a</span><span class="s2">, </span><span class="si">%d</span><span class="s2"> %b %Y %H:%M:%S %Z&quot;</span> 
+                <span class="p">)</span> <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">next_run_time</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;schedule&quot;</span><span class="p">:</span> <span class="n">job</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;crontab&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;job_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;cron&quot;</span> <span class="k">else</span> <span class="s2">&quot;SINGLE&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span> <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">next_run_time</span> <span class="k">else</span> <span class="s2">&quot;PAUSED&quot;</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">job_list</span>
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/</span><span class="si">{job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">modify_job_state</span><span class="p">(</span><span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">ActionEnum</span> <span class="o">=</span> <span class="n">Body</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">embed</span><span class="o">=</span><span class="kc">True</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">action</span> <span class="o">==</span>  <span class="n">ActionEnum</span><span class="o">.</span><span class="n">pause</span><span class="p">:</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">my_scheduler</span><span class="o">.</span><span class="n">pause_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> paused!&quot;</span><span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">my_scheduler</span><span class="o">.</span><span class="n">resume_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> resumed!&quot;</span><span class="p">}</span>
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/</span><span class="si">{job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">delete_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">my_scheduler</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Job not exists!&quot;</span><span class="p">)</span>
+    <span class="n">my_scheduler</span><span class="o">.</span><span class="n">remove_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> deleted!&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<h3>Main APP</h3>
+<p>Now all things we have to do is including the endpoints into our FastAPI main app. </p>
+<p><strong><code>./main.py</code></strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">uvicorn</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+<span class="kn">from</span> <span class="nn">.core.scheduler</span> <span class="kn">import</span> <span class="n">my_scheduler</span>
+<span class="kn">from</span> <span class="nn">.api.api_v1.api</span> <span class="kn">import</span> <span class="n">api_router</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+<span class="n">app</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">api_router</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/api/v1&quot;</span><span class="p">)</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">on_event</span><span class="p">(</span><span class="s2">&quot;startup&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">start_scheduler</span><span class="p">():</span>
+    <span class="n">my_scheduler</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">uvicorn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8443</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Test our First Scheduler</h3>
+<p>Now in root path (here my code are inside the <code>backend/app</code> folder), run </p>
+<p><code>uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8443</code></p>
+<p>to start the web app and open the Swagger UI in browser under url <code>http://localhost:8443/docs</code></p>
+<p><strong>Get available job classes</strong></p>
+<p><img src="../images/job_classes.png" alt="img" style="zoom:80%;" /></p>
+<p><strong>Add cronjob</strong></p>
+<p><img src="../images/add_job.png" alt="img" style="zoom:80%;" /></p>
+<p>Here we added a job which prints hello every minute, we can see it in our terminal output.</p>
+<p><img src="../images/printhello.png" alt="img" style="zoom:80%;" /></p>
+<p>We can also list current jobs and delete a job by its job_id in the Swagger UI. </p>
+<p>So, that's it! We have implemented our first job scheduler :)</p>
+<p>In the next post of this series I will show you how to use job event listener and a database to monitor job executions. </p>
+  </div><!-- /.entry-content -->
+</section>
+
+    <!-- Java Script
+    ================================================== -->
+    <script src="/theme/js/jquery-3.2.1.min.js"></script>
+    <script src="/theme/js/plugins.js"></script>
+    <script src="/theme/js/main.js"></script>
+
+</body>
+
+</html>
